@@ -1,0 +1,30 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syslog Analyser</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        pre { background: #f4f4f4; padding: 10px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Contents of /var/log/remote/</h1>
+    <form method="post">
+        <input type="hidden" name="username" value="{{ username }}">
+        <input type="hidden" name="password" value="{{ password }}">
+        <label for="file">Select a log file:</label>
+        <select name="file" id="file">
+            {% for file in files %}
+                <option value="{{ file }}">{{ file }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="View Log">
+    </form>
+    <h2>Log File Contents</h2>
+    <pre>{{ selected_file_content }}</pre>
+</body>
+</html>

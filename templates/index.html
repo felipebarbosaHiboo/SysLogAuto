@@ -14,8 +14,6 @@
 <body>
     <h1>Contents of /var/log/remote/</h1>
     <form method="post">
-        <input type="hidden" name="username" value="{{ username }}">
-        <input type="hidden" name="password" value="{{ password }}">
         <label for="file">Select a log file:</label>
         <select name="file" id="file">
             {% for file in files %}

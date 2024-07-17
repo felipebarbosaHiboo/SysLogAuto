@@ -4,6 +4,10 @@ import paramiko
 from config import SYSLOG_HOST, SYSLOG_USER, SYSLOG_PASSWORD, LOCAL_PORT
 from jump_server import setup_jump_connection
 
+KEYWORDS = ["error", "warning", "critical", "fail", "failed", "down", "unreachable",
+            "timeout", "denied", "dropped", "authentication", "interface", "link",
+            "overrun", "underrun", "congestion", "chassis", "memory", "cpu", "pfe", "nat"]
+
 def connect_to_syslog_server(transport):
     try:
         # Connect to the syslog server through the jump server's transport
@@ -33,8 +37,8 @@ def execute_ls_command(username, password):
 
         # Execute the 'ls -l' command in the /var/log/remote/ directory
         stdin, stdout, stderr = syslog_client.exec_command('ls -l /var/log/remote/')
-        ls_output = stdout.read().decode()
-        ls_error = stderr.read().decode()
+        ls_output = stdout.read().decode(errors='replace')
+        ls_error = stderr.read().decode(errors='replace')
 
         # Close the connections
         syslog_client.close()
@@ -49,6 +53,13 @@ def execute_ls_command(username, password):
     except Exception as e:
         return str(e)
 
+def filter_logs(logs):
+    filtered_logs = ""
+    for line in logs.split('\n'):
+        if any(keyword in line.lower() for keyword in KEYWORDS):
+            filtered_logs += line + "\n"
+    return filtered_logs
+
 def execute_cat_command(username, password, file_name):
     try:
         jump_client, transport = setup_jump_connection(username, password)
@@ -59,21 +70,40 @@ def execute_cat_command(username, password, file_name):
         if syslog_client is None:
             return "Failed to connect to syslog server."
 
-        # Execute the 'cat' command with tail 100 on the specified log file
-        command = f'tail -n 100 /var/log/remote/{file_name}'
-        stdin, stdout, stderr = syslog_client.exec_command(command)
-        cat_output = stdout.read().decode()
-        cat_error = stderr.read().decode()
+        if file_name == "all_logs":
+            # Get the list of all files
+            stdin, stdout, stderr = syslog_client.exec_command('ls /var/log/remote/*.log')
+            files = stdout.read().decode(errors='replace').strip().split()
+            logs_output = ""
+            for file in files:
+                command = f'tail -n 500 {file}'
+                stdin, stdout, stderr = syslog_client.exec_command(command)
+                log_output = stdout.read().decode(errors='replace')
+                log_error = stderr.read().decode(errors='replace')
+                if log_error:
+                    log_output = f"Error: {log_error}"
+                device_name = file.split('/')[-1]
+                filtered_log_output = filter_logs(log_output)
+                logs_output += f"<h2><b>{device_name}</b></h2><pre>{filtered_log_output}</pre><br>"
+
+        else:
+            # Execute the 'cat' command with tail 100 on the specified log file
+            command = f'tail -n 100 /var/log/remote/{file_name}'
+            stdin, stdout, stderr = syslog_client.exec_command(command)
+            logs_output = stdout.read().decode(errors='replace')
+            logs_error = stderr.read().decode(errors='replace')
+
+            if logs_error:
+                logs_output = f"Error: {logs_error}"
+            else:
+                logs_output = f"<pre>{filter_logs(logs_output)}</pre>"
 
         # Close the connections
         syslog_client.close()
         jump_client.close()
         print("Connection to syslog server closed")
 
-        if cat_error:
-            return f"Error: {cat_error}"
-
-        return cat_output
+        return logs_output
 
     except Exception as e:
         return str(e)

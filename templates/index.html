@@ -6,23 +6,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Syslog Analyser</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        pre { background: #f4f4f4; padding: 10px; }
-        .error { color: red; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border-bottom: 1px solid #ddd;
+        }
+        .header img {
+            height: 50px;
+        }
+        .header h1 {
+            margin-left: 20px;
+            font-size: 24px;
+        }
+        .container {
+            padding: 20px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            white-space: pre-wrap; /* Ensures logs wrap properly */
+            word-wrap: break-word;  /* Prevents overflow issues */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 500px; /* Optional: limit the height of the log display */
+            overflow-y: auto;  /* Optional: add scroll bar if content exceeds max height */
+        }
+        .error {
+            color: red;
+        }
+        form {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <h1>Contents of /var/log/remote/</h1>
-    <form method="post">
-        <label for="file">Select a log file:</label>
-        <select name="file" id="file">
-            {% for file in files %}
-                <option value="{{ file }}">{{ file }}</option>
-            {% endfor %}
-        </select>
-        <input type="submit" value="View Log">
-    </form>
-    <h2>Log File Contents</h2>
-    <pre>{{ selected_file_content }}</pre>
+    <div class="header">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Company Logo">
+        <h1>Contents of /var/log/remote/</h1>
+    </div>
+    <div class="container">
+        <form method="post">
+            <label for="file">Select a log file:</label>
+            <select name="file" id="file">
+                <option value="all_logs">All Logs</option>
+                {% for file in files %}
+                    <option value="{{ file }}">{{ file }}</option>
+                {% endfor %}
+            </select>
+            <input type="submit" value="View Log">
+        </form>
+        <h2>Log File Contents</h2>
+        <div>
+            {{ selected_file_content|safe }}
+        </div>
+        <hr>
+        <h2>Service Request</h2>
+        <form method="post">
+            <label for="device_ip">Select a device:</label>
+            <select name="device_ip" id="device_ip" required>
+                {% for device in devices %}
+                    <option value="{{ device.ip }}">{{ device.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="service_request" value="show_interfaces_terse">
+            <input type="submit" value="Submit">
+        </form>
+        <h2>Service Request Output</h2>
+        <pre>{{ service_request_output }}</pre>
+    </div>
 </body>
 </html>

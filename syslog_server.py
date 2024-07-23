@@ -162,6 +162,9 @@ def execute_cat_command(username, password, file_name, tail, filter_keywords):
         return str(e)
 
 def filter_logs(logs, filter_keywords):
+    if not filter_keywords or all(not keyword.strip() for keyword in filter_keywords):
+        # If no keywords are provided, return the original logs
+        return logs
     filtered_logs = ""
     for line in logs.split('\n'):
         if any(keyword.strip().lower() in line.lower() for keyword in filter_keywords if keyword.strip()):

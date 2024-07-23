@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, render_template, request, redirect, url_for, session
 from syslog_server import execute_ls_command, execute_cat_command
 
@@ -46,8 +44,11 @@ def index():
     selected_file_content = ""
     if request.method == 'POST':
         selected_file = request.form.get('file')
+        tail = request.form.get('tail', '100')  # Default to 100 if not provided
+        filter_keywords = request.form.get('filter', '').split(',')
+
         if selected_file:
-            selected_file_content = execute_cat_command(username, password, selected_file)
+            selected_file_content = execute_cat_command(username, password, selected_file, tail, filter_keywords)
 
     return render_template('index.html', files=files, selected_file_content=selected_file_content)
 

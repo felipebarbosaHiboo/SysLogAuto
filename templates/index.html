@@ -59,6 +59,10 @@
                     <option value="{{ file }}">{{ file }}</option>
                 {% endfor %}
             </select>
+            <label for="tail">TAIL:</label>
+            <input type="number" id="tail" name="tail" min="1" value="100" required>
+            <label for="filter">FILTER:</label>
+            <input type="text" id="filter" name="filter" placeholder="keywords separated by comma">
             <input type="submit" value="View Log">
         </form>
         <h2>Log File Contents</h2>

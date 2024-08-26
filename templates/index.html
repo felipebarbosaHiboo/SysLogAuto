@@ -52,19 +52,33 @@
     </div>
     <div class="container">
         <form method="post">
-            <label for="file">Select a log file:</label>
-            <select name="file" id="file">
-                <option value="all_logs">All Logs</option>
-                {% for file in files %}
-                    <option value="{{ file }}">{{ file }}</option>
+            <label for="directory">Select a device:</label>
+            <select name="directory" id="directory" required onchange="loadDates()">
+                <option value="">Select a device</option>
+                {% for directory in directories %}
+                    <option value="{{ directory }}">{{ directory }}</option>
                 {% endfor %}
             </select>
-            <label for="tail">TAIL:</label>
-            <input type="number" id="tail" name="tail" min="1" value="100" required>
+
+            <label for="start_date">Start Date:</label>
+            <select id="start_date" name="start_date" required>
+                <option value="">Select a start date</option>
+            </select>
+
+            <label for="end_date">End Date:</label>
+            <select id="end_date" name="end_date" required>
+                <option value="">Select an end date</option>
+            </select>
+
             <label for="filter">FILTER:</label>
             <input type="text" id="filter" name="filter" placeholder="keywords separated by comma">
+
+            <label for="exclude_regex">Exclude Regex:</label>
+            <input type="text" id="exclude_regex" name="exclude_regex" placeholder="patterns separated by |">
+
             <input type="submit" value="View Log">
         </form>
+
         <h2>Log File Contents</h2>
         <div>
             {{ selected_file_content|safe }}
@@ -72,3 +86,24 @@
     </div>
 </body>
 </html>
+
+<script type="text/javascript">
+    function loadDates() {
+        var directory = document.getElementById('directory').value;
+        if (directory) {
+            fetch('/get_dates?directory=' + directory)
+                .then(response => response.json())
+                .then(data => {
+                    var startDate = document.getElementById('start_date');
+                    var endDate = document.getElementById('end_date');
+                    startDate.innerHTML = "";
+                    endDate.innerHTML = "";
+                    data.dates.forEach(function(date) {
+                        var option = new Option(date, date);
+                        startDate.appendChild(option);
+                        endDate.appendChild(option.cloneNode(true));
+                    });
+                });
+        }
+    }
+</script>

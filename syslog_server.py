@@ -1,5 +1,3 @@
-# syslog_server.py
-
 import paramiko
 from config import SYSLOG_HOST, SYSLOG_USER, SYSLOG_PASSWORD, LOCAL_PORT
 from jump_server import setup_jump_connection
@@ -10,60 +8,6 @@ KEYWORDS = ["error", "warning", "critical", "fail", "failed", "down", "unreachab
 
 def connect_to_syslog_server(transport):
     try:
-        # Connect to the syslog server through the jump server's transdef execute_cat_command(username, password, file_name, tail, filter_keywords):
-        #     try:
-        #         jump_client, transport = setup_jump_connection(username, password)
-        #         if jump_client is None or transport is None:
-        #             return "Failed to establish jump server connection."
-        #
-        #         syslog_client = connect_to_syslog_server(transport)
-        #         if syslog_client is None:
-        #             return "Failed to connect to syslog server."
-        #
-        #         if file_name == "all_logs":
-        #             # Get the list of all files
-        #             stdin, stdout, stderr = syslog_client.exec_command('ls /var/log/remote/*.log')
-        #             files = stdout.read().decode(errors='replace').strip().split()
-        #             logs_output = ""
-        #             for file in files:
-        #                 command = f'tail -n {tail} {file}'
-        #                 stdin, stdout, stderr = syslog_client.exec_command(command)
-        #                 log_output = stdout.read().decode(errors='replace')
-        #                 log_error = stderr.read().decode(errors='replace')
-        #                 if log_error:
-        #                     log_output = f"Error: {log_error}"
-        #                 device_name = file.split('/')[-1]
-        #                 filtered_log_output = filter_logs(log_output, filter_keywords)
-        #                 logs_output += f"<h2><b>{device_name}</b></h2><pre>{filtered_log_output}</pre><br>"
-        #
-        #         else:
-        #             # Execute the 'cat' command with the specified number of lines (tail)
-        #             command = f'tail -n {tail} /var/log/remote/{file_name}'
-        #             stdin, stdout, stderr = syslog_client.exec_command(command)
-        #             logs_output = stdout.read().decode(errors='replace')
-        #             logs_error = stderr.read().decode(errors='replace')
-        #
-        #             if logs_error:
-        #                 logs_output = f"Error: {logs_error}"
-        #             else:
-        #                 logs_output = f"<pre>{filter_logs(logs_output, filter_keywords)}</pre>"
-        #
-        #         # Close the connections
-        #         syslog_client.close()
-        #         jump_client.close()
-        #         print("Connection to syslog server closed")
-        #
-        #         return logs_output
-        #
-        #     except Exception as e:
-        #         return str(e)
-        #
-        # def filter_logs(logs, filter_keywords):
-        #     filtered_logs = ""
-        #     for line in logs.split('\n'):
-        #         if any(keyword.strip().lower() in line.lower() for keyword in filter_keywords if keyword.strip()):
-        #             filtered_logs += line + "\n"
-        #     return filtered_logsport
         syslog_client = paramiko.SSHClient()
         syslog_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         syslog_client.connect(
@@ -78,7 +22,7 @@ def connect_to_syslog_server(transport):
         print(f"Failed to connect to syslog server: {e}")
         return None
 
-def execute_ls_command(username, password):
+def execute_ls_command(username, password, path=''):
     try:
         jump_client, transport = setup_jump_connection(username, password)
         if jump_client is None or transport is None:
@@ -88,15 +32,13 @@ def execute_ls_command(username, password):
         if syslog_client is None:
             return "Failed to connect to syslog server."
 
-        # Execute the 'ls -l' command in the /var/log/remote/ directory
-        stdin, stdout, stderr = syslog_client.exec_command('ls -l /var/log/remote/')
+        command = f'ls {path}'
+        stdin, stdout, stderr = syslog_client.exec_command(command)
         ls_output = stdout.read().decode(errors='replace')
         ls_error = stderr.read().decode(errors='replace')
 
-        # Close the connections
         syslog_client.close()
         jump_client.close()
-        print("Connection to syslog server closed")
 
         if ls_error:
             return f"Error: {ls_error}"
@@ -106,14 +48,17 @@ def execute_ls_command(username, password):
     except Exception as e:
         return str(e)
 
-def filter_logs(logs):
+def filter_logs(logs, filter_keywords):
+    if not filter_keywords or all(not keyword.strip() for keyword in filter_keywords):
+        return logs
     filtered_logs = ""
     for line in logs.split('\n'):
-        if any(keyword in line.lower() for keyword in KEYWORDS):
+        if any(keyword.strip().lower() in line.lower() for keyword in filter_keywords if keyword.strip()):
             filtered_logs += line + "\n"
     return filtered_logs
 
-def execute_cat_command(username, password, file_name, tail, filter_keywords):
+
+def execute_cat_command(username, password, file_paths, filter_keywords, exclude_regex=None, chunk_size=4096):
     try:
         jump_client, transport = setup_jump_connection(username, password)
         if jump_client is None or transport is None:
@@ -123,52 +68,35 @@ def execute_cat_command(username, password, file_name, tail, filter_keywords):
         if syslog_client is None:
             return "Failed to connect to syslog server."
 
-        if file_name == "all_logs":
-            # Get the list of all files
-            stdin, stdout, stderr = syslog_client.exec_command('ls /var/log/remote/*.log')
-            files = stdout.read().decode(errors='replace').strip().split()
-            logs_output = ""
-            for file in files:
-                command = f'tail -n {tail} {file}'
-                stdin, stdout, stderr = syslog_client.exec_command(command)
-                log_output = stdout.read().decode(errors='replace')
+        logs_output = ""
+        exclude_pattern = re.compile(exclude_regex) if exclude_regex else None
+
+        for file_path in file_paths:
+            command = f'cat {file_path}'
+            stdin, stdout, stderr = syslog_client.exec_command(command)
+            while True:
+                chunk = stdout.read(chunk_size).decode(errors='replace')
+                if not chunk:
+                    break
                 log_error = stderr.read().decode(errors='replace')
                 if log_error:
-                    log_output = f"Error: {log_error}"
-                device_name = file.split('/')[-1]
-                filtered_log_output = filter_logs(log_output, filter_keywords)
-                logs_output += f"<h2><b>{device_name}</b></h2><pre>{filtered_log_output}</pre><br>"
+                    return f"Error: {log_error}"
 
-        else:
-            # Execute the 'cat' command with the specified number of lines (tail)
-            command = f'tail -n {tail} /var/log/remote/{file_name}'
-            stdin, stdout, stderr = syslog_client.exec_command(command)
-            logs_output = stdout.read().decode(errors='replace')
-            logs_error = stderr.read().decode(errors='replace')
+                # Apply exclusion regex
+                if exclude_pattern:
+                    chunk = "\n".join(line for line in chunk.splitlines() if not exclude_pattern.search(line))
 
-            if logs_error:
-                logs_output = f"Error: {logs_error}"
-            else:
-                logs_output = f"<pre>{filter_logs(logs_output, filter_keywords)}</pre>"
+                filtered_log_output = filter_logs(chunk, filter_keywords)
+                logs_output += f"<h2><b>{file_path.split('/')[-1]}</b></h2><pre>{filtered_log_output}</pre><br>"
 
-        # Close the connections
         syslog_client.close()
         jump_client.close()
-        print("Connection to syslog server closed")
-
         return logs_output
 
     except Exception as e:
         return str(e)
 
-def filter_logs(logs, filter_keywords):
-    if not filter_keywords or all(not keyword.strip() for keyword in filter_keywords):
-        # If no keywords are provided, return the original logs
-        return logs
-    filtered_logs = ""
-    for line in logs.split('\n'):
-        if any(keyword.strip().lower() in line.lower() for keyword in filter_keywords if keyword.strip()):
-            filtered_logs += line + "\n"
-    return filtered_logs
 
 
+    except Exception as e:
+        return str(e)

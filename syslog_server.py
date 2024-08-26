@@ -1,4 +1,4 @@
-import paramiko
+import paramiko, re
 from config import SYSLOG_HOST, SYSLOG_USER, SYSLOG_PASSWORD, LOCAL_PORT
 from jump_server import setup_jump_connection
 

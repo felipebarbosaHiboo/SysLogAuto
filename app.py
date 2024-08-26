@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import os, re
+import os
 from syslog_server import execute_ls_command, execute_cat_command
 
 app = Flask(__name__)
